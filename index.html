@@ -415,19 +415,30 @@ function sbHeaders(extra){
   }, extra || {});
 }
 
+async function sbErrorText(res){
+  try{
+    const data = await res.json();
+    return data.message || data.hint || data.error_description || data.error || JSON.stringify(data);
+  } catch(e){
+    return res.status + ' ' + res.statusText;
+  }
+}
+
 async function sbGet(table, query){
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + (query || ''), { headers: sbHeaders() });
-  if(!res.ok) throw new Error('تعذر تحميل البيانات من ' + table);
+  if(!res.ok) throw new Error('تعذر تحميل البيانات من ' + table + ': ' + await sbErrorText(res));
   return res.json();
 }
 
 async function sbInsert(table, row){
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
     method: 'POST',
-    headers: sbHeaders({ 'Prefer': 'return=representation' }),
+    // resolution=merge-duplicates makes this an upsert, so retrying a save
+    // (e.g. after a flaky connection) never fails with a "duplicate key" error
+    headers: sbHeaders({ 'Prefer': 'return=representation,resolution=merge-duplicates' }),
     body: JSON.stringify(row)
   });
-  if(!res.ok) throw new Error('تعذر حفظ البيانات في ' + table);
+  if(!res.ok) throw new Error('تعذر حفظ البيانات في ' + table + ': ' + await sbErrorText(res));
   const data = await res.json();
   return data[0];
 }
@@ -437,7 +448,7 @@ async function sbDelete(table, id){
     method: 'DELETE',
     headers: sbHeaders()
   });
-  if(!res.ok) throw new Error('تعذر الحذف من ' + table);
+  if(!res.ok) throw new Error('تعذر الحذف من ' + table + ': ' + await sbErrorText(res));
 }
 
 async function sbUpdateWhere(table, matchCol, matchVal, patch){
@@ -446,7 +457,7 @@ async function sbUpdateWhere(table, matchCol, matchVal, patch){
     headers: sbHeaders(),
     body: JSON.stringify(patch)
   });
-  if(!res.ok) throw new Error('تعذر تحديث البيانات في ' + table);
+  if(!res.ok) throw new Error('تعذر تحديث البيانات في ' + table + ': ' + await sbErrorText(res));
 }
 /* =========================================================== */
 

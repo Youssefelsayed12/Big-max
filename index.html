@@ -248,16 +248,22 @@
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1F2D3D" stroke-width="2.2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
       </div>
       <h1 class="stamp">دفتر المصروفات</h1>
-      <p class="sub">دفترك الخاص، محدش يشوفه غيرك</p>
+      <p class="sub" id="authSub">دفترك الخاص، محدش يشوفه غيرك</p>
     </div>
 
     <div class="auth-body">
       <div class="auth-err" id="authErr"></div>
 
       <form id="authForm">
-        <label class="pw-field-label">كلمة المرور</label>
+        <label class="pw-field-label" id="pwLabel">كلمة المرور</label>
         <div class="pw-input-wrap">
           <input type="password" id="authPassword" placeholder="••••••" required autofocus />
+        </div>
+        <div id="confirmPwWrap" style="display:none;">
+          <label class="pw-field-label">تأكيد كلمة المرور</label>
+          <div class="pw-input-wrap">
+            <input type="password" id="authPasswordConfirm" placeholder="••••••" />
+          </div>
         </div>
         <button type="submit" class="auth-submit" id="authSubmitBtn">افتح الدفتر</button>
       </form>
@@ -268,7 +274,10 @@
 <div id="appRoot" style="display:none;">
 <div class="top-user-bar">
   <span>دفترك الشخصي</span>
-  <button id="logoutBtn">قفل الدفتر 🔒</button>
+  <div>
+    <button id="changePwBtn" style="margin-left:14px;">تغيير الباسورد</button>
+    <button id="logoutBtn">قفل الدفتر 🔒</button>
+  </div>
 </div>
 <header>
   <div class="wrap">
@@ -372,15 +381,73 @@
     <button type="submit" class="submit-btn">حفظ العملية</button>
   </form>
 </div>
+
+<div class="modal-bg" id="pwModalBg">
+  <form class="modal" id="pwForm">
+    <div class="modal-head">
+      <h2 class="stamp">تغيير كلمة المرور</h2>
+      <button type="button" id="closePwForm">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="auth-err" id="pwErr"></div>
+    <label class="field-label">كلمة المرور الحالية</label>
+    <input type="password" id="pwCurrent" required />
+    <label class="field-label">كلمة المرور الجديدة</label>
+    <input type="password" id="pwNew" required minlength="4" />
+    <label class="field-label">تأكيد كلمة المرور الجديدة</label>
+    <input type="password" id="pwNewConfirm" required minlength="4" />
+    <button type="submit" class="submit-btn">حفظ كلمة المرور الجديدة</button>
+  </form>
+</div>
 </div><!-- /appRoot -->
 
 <script>
-/* ====== ملاحظة للربط المستقبلي بقاعدة بيانات Supabase ======
-   لما يبقى عندك SUPABASE_URL و SUPABASE_ANON_KEY، احطهم هنا
-   وهنبدّل دوال loadEntries/saveEntry/deleteEntryRemote عشان
-   تتكلم مع REST API بتاع Supabase بدل المصفوفة المحلية.  */
-const SUPABASE_URL = "";
-const SUPABASE_ANON_KEY = "";
+const SUPABASE_URL = "https://cfrjmulnzvbomzpcrdtq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmcmptdWxuenZib216cGNyZHRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMTA2MzAsImV4cCI6MjA5OTY4NjYzMH0.LYyLh_xwOZE940tApB2C3k57Z75Dd0vzO1c0K3IGShU";
+const SUPABASE_CONFIGURED = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+function sbHeaders(extra){
+  return Object.assign({
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json',
+  }, extra || {});
+}
+
+async function sbGet(table, query){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + (query || ''), { headers: sbHeaders() });
+  if(!res.ok) throw new Error('تعذر تحميل البيانات من ' + table);
+  return res.json();
+}
+
+async function sbInsert(table, row){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table, {
+    method: 'POST',
+    headers: sbHeaders({ 'Prefer': 'return=representation' }),
+    body: JSON.stringify(row)
+  });
+  if(!res.ok) throw new Error('تعذر حفظ البيانات في ' + table);
+  const data = await res.json();
+  return data[0];
+}
+
+async function sbDelete(table, id){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: sbHeaders()
+  });
+  if(!res.ok) throw new Error('تعذر الحذف من ' + table);
+}
+
+async function sbUpdateWhere(table, matchCol, matchVal, patch){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + table + '?' + matchCol + '=eq.' + encodeURIComponent(matchVal), {
+    method: 'PATCH',
+    headers: sbHeaders(),
+    body: JSON.stringify(patch)
+  });
+  if(!res.ok) throw new Error('تعذر تحديث البيانات في ' + table);
+}
 /* =========================================================== */
 
 const CATEGORIES = [
@@ -411,33 +478,126 @@ let chartInstance = null;
 let addingCategory = false; // whether the inline "add category" input is open, and where
 let addingCategoryTarget = null; // 'filter' or 'form'
 
-/* ====== كلمة المرور الخاصة بيك ======
-   غيّرها لأي كلمة سر تختارها. ده حماية بسيطة كافية للاستخدام الشخصي
-   (مش نظام تسجيل دخول حقيقي بيوزرات متعددة) لأنك انت بس اللي هتستخدم الموقع. */
-const SITE_PASSWORD = "1234";
+/* ====== كلمة المرور الاحتياطية ======
+   بتتستخدم بس لو مفيش اتصال بقاعدة البيانات. في الوضع العادي، كلمة المرور
+   بتتخزن (كـ hash) في جدول settings على Supabase، وتقدر تغيّرها من داخل الموقع. */
+const FALLBACK_PASSWORD = "1234";
 /* =================================================== */
 
 let unlocked = false;
+let storedPasswordHash = null; // hash المحفوظ في Supabase
+let authScreenMode = 'login'; // 'login' | 'setup' | 'fallback'
+
+async function sha256Hex(text){
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function initAuth(){
+  if(SUPABASE_CONFIGURED){
+    try{
+      const rows = await sbGet('settings', '?select=*&id=eq.main');
+      if(rows && rows.length){
+        storedPasswordHash = rows[0].password_hash;
+        authScreenMode = 'login';
+      } else {
+        authScreenMode = 'setup';
+      }
+    } catch(err){
+      // جدول settings لسه مش موجود أو حصل خطأ - نستخدم كلمة المرور الاحتياطية
+      authScreenMode = 'fallback';
+    }
+  } else {
+    authScreenMode = 'fallback';
+  }
+
+  const confirmWrap = document.getElementById('confirmPwWrap');
+  const sub = document.getElementById('authSub');
+  const submitBtn = document.getElementById('authSubmitBtn');
+  if(authScreenMode === 'setup'){
+    confirmWrap.style.display = 'block';
+    document.getElementById('authPasswordConfirm').required = true;
+    sub.textContent = 'أول مرة؟ اختار كلمة مرور لدفترك';
+    submitBtn.textContent = 'احفظ كلمة المرور وابدأ';
+  } else {
+    confirmWrap.style.display = 'none';
+    document.getElementById('authPasswordConfirm').required = false;
+    sub.textContent = 'دفترك الخاص، محدش يشوفه غيرك';
+    submitBtn.textContent = 'افتح الدفتر';
+  }
+  showAuthScreen();
+}
 
 function showAuthScreen(){
   document.getElementById('authScreen').style.display = 'flex';
   document.getElementById('appRoot').style.display = 'none';
 }
 
-function showApp(){
+async function showApp(){
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appRoot').style.display = 'block';
+  if(SUPABASE_CONFIGURED){
+    document.getElementById('ledgerWrap').innerHTML = '<div class="empty"><p class="stamp">بتحمّل الدفتر...</p></div>';
+    try{
+      const [entryRows, catRows] = await Promise.all([
+        sbGet('entries', '?select=*&order=date.desc'),
+        sbGet('custom_categories', '?select=*&order=created_at.asc'),
+      ]);
+      entries = entryRows;
+      customCategories = catRows.map(c => ({ id:c.id, label:c.label, color:c.color, custom:true }));
+    } catch(err){
+      document.getElementById('ledgerWrap').innerHTML = '<div class="empty"><p class="stamp">حصل خطأ في التحميل</p><p class="small">'+err.message+'</p></div>';
+    }
+  }
   renderCatPicker();
   renderAll();
 }
 
-document.getElementById('authForm').onsubmit = (e)=>{
+document.getElementById('authForm').onsubmit = async (e)=>{
   e.preventDefault();
   const errBox = document.getElementById('authErr');
+  errBox.style.display='none';
   const password = document.getElementById('authPassword').value;
-  if(password === SITE_PASSWORD){
+
+  if(authScreenMode === 'setup'){
+    const confirmVal = document.getElementById('authPasswordConfirm').value;
+    if(password.length < 4){ errBox.textContent='كلمة المرور لازم تكون 4 حروف/أرقام على الأقل.'; errBox.style.display='block'; return; }
+    if(password !== confirmVal){ errBox.textContent='كلمة المرور وتأكيدها مش متطابقين.'; errBox.style.display='block'; return; }
+    const btn = document.getElementById('authSubmitBtn');
+    btn.disabled = true; btn.textContent = 'بيتحفظ...';
+    try{
+      const hash = await sha256Hex(password);
+      await sbInsert('settings', { id:'main', password_hash: hash });
+      storedPasswordHash = hash;
+      unlocked = true;
+      document.getElementById('authForm').reset();
+      showApp();
+    } catch(err){
+      errBox.textContent = err.message;
+      errBox.style.display='block';
+    } finally {
+      btn.disabled = false; btn.textContent = 'احفظ كلمة المرور وابدأ';
+    }
+    return;
+  }
+
+  if(authScreenMode === 'fallback'){
+    if(password === FALLBACK_PASSWORD){
+      unlocked = true;
+      document.getElementById('authForm').reset();
+      showApp();
+    } else {
+      errBox.textContent = 'كلمة المرور غلط، حاول تاني.';
+      errBox.style.display='block';
+    }
+    return;
+  }
+
+  // authScreenMode === 'login'
+  const hash = await sha256Hex(password);
+  if(hash === storedPasswordHash){
     unlocked = true;
-    errBox.style.display='none';
     document.getElementById('authForm').reset();
     showApp();
   } else {
@@ -451,22 +611,90 @@ document.getElementById('logoutBtn').onclick = ()=>{
   showAuthScreen();
 };
 
+document.getElementById('changePwBtn').onclick = ()=>{
+  document.getElementById('pwErr').style.display='none';
+  document.getElementById('pwForm').reset();
+  document.getElementById('pwModalBg').style.display='flex';
+};
+document.getElementById('closePwForm').onclick = ()=>{ document.getElementById('pwModalBg').style.display='none'; };
+document.getElementById('pwModalBg').onclick = (e)=>{ if(e.target===document.getElementById('pwModalBg')) document.getElementById('pwModalBg').style.display='none'; };
+
+document.getElementById('pwForm').onsubmit = async (e)=>{
+  e.preventDefault();
+  const errBox = document.getElementById('pwErr');
+  errBox.style.display='none';
+  const current = document.getElementById('pwCurrent').value;
+  const next = document.getElementById('pwNew').value;
+  const confirmVal = document.getElementById('pwNewConfirm').value;
+
+  if(authScreenMode === 'fallback'){
+    errBox.textContent = 'مينفعش تغيّر كلمة المرور دلوقتي لأن الموقع مش متصل بجدول settings على Supabase.';
+    errBox.style.display='block';
+    return;
+  }
+
+  const currentHash = await sha256Hex(current);
+  if(currentHash !== storedPasswordHash){
+    errBox.textContent = 'كلمة المرور الحالية غلط.';
+    errBox.style.display='block';
+    return;
+  }
+  if(next.length < 4){
+    errBox.textContent = 'كلمة المرور الجديدة لازم تكون 4 حروف/أرقام على الأقل.';
+    errBox.style.display='block';
+    return;
+  }
+  if(next !== confirmVal){
+    errBox.textContent = 'كلمة المرور الجديدة وتأكيدها مش متطابقين.';
+    errBox.style.display='block';
+    return;
+  }
+
+  try{
+    const newHash = await sha256Hex(next);
+    await sbUpdateWhere('settings', 'id', 'main', { password_hash: newHash });
+    storedPasswordHash = newHash;
+    document.getElementById('pwModalBg').style.display='none';
+    showToast('اتغيرت كلمة المرور بنجاح');
+  } catch(err){
+    errBox.textContent = err.message;
+    errBox.style.display='block';
+  }
+};
+
 const PALETTE = ["#7A6FA3","#3E7C6A","#B0555A","#5B7DA6","#A87C3E","#5E8B5E","#94578A","#4E6E5A"];
 function nextColor(){ return PALETTE[(customCategories.length) % PALETTE.length]; }
 
 function allCategories(){ return CATEGORIES.concat(customCategories); }
 
-function addCustomCategory(name){
+async function addCustomCategory(name){
   const trimmed = name.trim();
   if(!trimmed) return null;
   const exists = allCategories().find(c=>c.label===trimmed || c.id===trimmed);
   if(exists) return exists;
   const cat = { id: trimmed, label: trimmed, color: nextColor(), custom:true };
+  if(SUPABASE_CONFIGURED){
+    try{
+      await sbInsert('custom_categories', { id:cat.id, label:cat.label, color:cat.color });
+    } catch(err){
+      alert(err.message);
+      return null;
+    }
+  }
   customCategories.push(cat);
   return cat;
 }
 
-function deleteCustomCategory(id){
+async function deleteCustomCategory(id){
+  if(SUPABASE_CONFIGURED){
+    try{
+      await sbUpdateWhere('entries', 'category', id, { category: 'أخرى' });
+      await sbDelete('custom_categories', id);
+    } catch(err){
+      alert(err.message);
+      return;
+    }
+  }
   customCategories = customCategories.filter(c=>c.id!==id);
   // reassign any entries that used this category to "أخرى" so nothing is lost
   entries = entries.map(e => e.category===id ? {...e, category:"أخرى"} : e);
@@ -516,7 +744,7 @@ function renderChips(){
       x.textContent = '×';
       x.style.fontWeight = '900';
       x.style.opacity = '0.6';
-      x.onclick = (ev)=>{ ev.stopPropagation(); if(confirm('تحذف الفئة "'+c.label+'"؟ العمليات المسجلة فيها هتتنقل لفئة "أخرى".')){ deleteCustomCategory(c.id); renderAll(); } };
+      x.onclick = (ev)=>{ ev.stopPropagation(); if(confirm('تحذف الفئة "'+c.label+'"؟ العمليات المسجلة فيها هتتنقل لفئة "أخرى".')){ deleteCustomCategory(c.id).then(renderAll); } };
       b.appendChild(x);
     }
     b.onclick = ()=>{ filterCat=c.id; renderAll(); };
@@ -553,8 +781,10 @@ function buildInlineAddCategory(target){
   confirmBtn.className = 'chip';
   confirmBtn.textContent = 'إضافة';
   confirmBtn.type = 'button';
-  confirmBtn.onclick = ()=>{
-    const cat = addCustomCategory(input.value);
+  confirmBtn.onclick = async ()=>{
+    confirmBtn.disabled = true;
+    const cat = await addCustomCategory(input.value);
+    confirmBtn.disabled = false;
     addingCategory = false; addingCategoryTarget=null;
     if(cat && target==='form'){ formCategory = cat.id; renderCatPicker(); }
     if(target==='filter'){ renderChips(); } else { renderCatPicker(); }
@@ -591,7 +821,7 @@ function renderCatPicker(){
       x.textContent = '×';
       x.style.fontWeight = '900';
       x.style.opacity = '0.6';
-      x.onclick = (ev)=>{ ev.stopPropagation(); if(confirm('تحذف الفئة "'+c.label+'"؟ العمليات المسجلة فيها هتتنقل لفئة "أخرى".')){ deleteCustomCategory(c.id); renderCatPicker(); } };
+      x.onclick = (ev)=>{ ev.stopPropagation(); if(confirm('تحذف الفئة "'+c.label+'"؟ العمليات المسجلة فيها هتتنقل لفئة "أخرى".')){ deleteCustomCategory(c.id).then(renderCatPicker); } };
       b.appendChild(x);
     }
     b.onclick = ()=>{ formCategory=c.id; renderCatPicker(); };
@@ -690,7 +920,15 @@ function renderAll(){
     }).join('');
     ledgerWrap.innerHTML = '<div class="ledger">'+rows+'</div>';
     ledgerWrap.querySelectorAll('.del').forEach(btn=>{
-      btn.onclick = ()=>{ entries = entries.filter(e=>e.id !== btn.dataset.id); renderAll(); };
+      btn.onclick = async ()=>{
+        const id = btn.dataset.id;
+        btn.disabled = true;
+        if(SUPABASE_CONFIGURED){
+          try{ await sbDelete('entries', id); } catch(err){ alert(err.message); btn.disabled=false; return; }
+        }
+        entries = entries.filter(e=>e.id !== id);
+        renderAll();
+      };
     });
   }
 }
@@ -734,20 +972,42 @@ document.getElementById('typeIncome').onclick = ()=>{
   catPickerWrap.style.display='none';
 };
 
-document.getElementById('entryForm').onsubmit = (e)=>{
+document.getElementById('entryForm').onsubmit = async (e)=>{
   e.preventDefault();
   const desc = document.getElementById('descInput').value.trim();
   const amount = Number(document.getElementById('amountInput').value);
   const date = document.getElementById('dateInput').value;
   if(!desc || !amount || amount<=0 || !date) return;
-  entries.unshift({
+
+  const newEntry = {
     id: uid(),
     type: formType,
     description: desc,
     amount: amount,
     category: formType==='دخل' ? 'دخل' : formCategory,
     date: date,
-  });
+  };
+
+  const submitBtn = document.querySelector('#entryForm .submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'بيتحفظ...';
+
+  if(SUPABASE_CONFIGURED){
+    try{
+      const saved = await sbInsert('entries', newEntry);
+      entries.unshift(saved);
+    } catch(err){
+      alert(err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'حفظ العملية';
+      return;
+    }
+  } else {
+    entries.unshift(newEntry);
+  }
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'حفظ العملية';
   document.getElementById('entryForm').reset();
   formType='مصروف';
   formCategory=CATEGORIES[0].id;

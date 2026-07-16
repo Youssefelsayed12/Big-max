@@ -297,7 +297,6 @@
         </div>
         <button type="submit" class="auth-submit" id="authSubmitBtn">افتح الدفتر</button>
       </form>
-      <p id="debugInfo" style="text-align:center;font-size:10px;color:#B7AF9B;margin-top:16px;direction:ltr;word-break:break-all;"></p>
     </div>
   </div>
 </div>
@@ -685,8 +684,6 @@ async function initAuth(){
     errBox.textContent = 'تعذر الاتصال بجدول settings (بيتم استخدام باسورد احتياطي مؤقت 1234): ' + fallbackReason;
     errBox.style.display = 'block';
   }
-  document.getElementById('debugInfo').textContent =
-    'DEBUG v3 | mode=' + authScreenMode + ' | configured=' + SUPABASE_CONFIGURED + ' | url=' + (SUPABASE_URL ? SUPABASE_URL.slice(0,20)+'...' : 'EMPTY');
   showAuthScreen();
 }
 

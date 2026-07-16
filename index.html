@@ -644,6 +644,7 @@ async function sha256Hex(text){
 }
 
 async function initAuth(){
+  let fallbackReason = '';
   if(SUPABASE_CONFIGURED){
     try{
       const rows = await sbGet('settings', '?select=*&id=eq.main');
@@ -656,6 +657,7 @@ async function initAuth(){
     } catch(err){
       // جدول settings لسه مش موجود أو حصل خطأ - نستخدم كلمة المرور الاحتياطية
       authScreenMode = 'fallback';
+      fallbackReason = err.message;
     }
   } else {
     authScreenMode = 'fallback';
@@ -664,6 +666,7 @@ async function initAuth(){
   const confirmWrap = document.getElementById('confirmPwWrap');
   const sub = document.getElementById('authSub');
   const submitBtn = document.getElementById('authSubmitBtn');
+  const errBox = document.getElementById('authErr');
   if(authScreenMode === 'setup'){
     confirmWrap.style.display = 'block';
     document.getElementById('authPasswordConfirm').required = true;
@@ -674,6 +677,10 @@ async function initAuth(){
     document.getElementById('authPasswordConfirm').required = false;
     sub.textContent = 'دفترك الخاص، محدش يشوفه غيرك';
     submitBtn.textContent = 'افتح الدفتر';
+  }
+  if(fallbackReason){
+    errBox.textContent = 'تعذر الاتصال بجدول settings (بيتم استخدام باسورد احتياطي مؤقت 1234): ' + fallbackReason;
+    errBox.style.display = 'block';
   }
   showAuthScreen();
 }

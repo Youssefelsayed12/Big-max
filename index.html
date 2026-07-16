@@ -237,6 +237,36 @@
   .top-user-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 20px 0;max-width:640px;margin:0 auto;}
   .top-user-bar span{font-size:12px;color:#9AA7B2;}
   .top-user-bar button{background:none;border:none;color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;}
+
+  .page-tabs{display:flex;gap:8px;max-width:640px;margin:12px auto 0;padding:0 20px;}
+  .page-tabs button{
+    flex:1;padding:10px;border-radius:10px;border:none;cursor:pointer;font-weight:700;font-size:13px;
+    background:var(--ink2);color:#9AA7B2;font-family:'Cairo',sans-serif;
+  }
+  .page-tabs button.active{background:var(--gold);color:var(--ink);}
+
+  .ot-summary{background:var(--card);border-radius:14px;padding:20px;margin-top:12px;}
+  .ot-summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;}
+  .ot-summary-row + .ot-summary-row{border-top:1px dashed var(--line);}
+  .ot-summary-row .k{font-size:12.5px;color:var(--muted);}
+  .ot-summary-row .v{font-size:15px;font-weight:800;color:var(--ink);}
+  .ot-summary-row.grand .v{color:var(--sage);font-size:19px;}
+  .ot-config{display:flex;gap:10px;margin-top:10px;}
+  .ot-config > div{flex:1;}
+  .ot-config label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;}
+  .ot-config input{width:100%;padding:8px 10px;border-radius:8px;border:none;background:var(--paper);font-family:'Cairo',sans-serif;font-size:13px;color:var(--ink);}
+
+  .ot-table{margin-top:12px;border-radius:12px;overflow:hidden;background:var(--card);}
+  .ot-row{padding:14px 16px;}
+  .ot-row + .ot-row{border-top:1px solid var(--paper);}
+  .ot-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .ot-row-date{font-size:13px;font-weight:800;color:var(--ink);}
+  .ot-row-times{font-size:11px;color:var(--muted);}
+  .ot-row-nums{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;}
+  .ot-row-nums .item{font-size:11px;color:var(--muted);}
+  .ot-row-nums .item b{display:block;font-size:14px;color:var(--ink);font-weight:800;}
+  .ot-del{background:none;border:none;cursor:pointer;opacity:.45;}
+  .ot-del:hover{opacity:1;}
 </style>
 </head>
 <body>
@@ -279,6 +309,13 @@
     <button id="logoutBtn">قفل الدفتر 🔒</button>
   </div>
 </div>
+
+<div class="page-tabs">
+  <button id="tabLedgerPage" class="active">دفتر المصروفات</button>
+  <button id="tabOvertimePage">ساعات العمل الإضافية</button>
+</div>
+
+<div id="ledgerPage">
 <header>
   <div class="wrap">
     <div class="head-top">
@@ -348,8 +385,6 @@
   إضافة عملية
 </button>
 
-<div class="toast" id="toast"></div>
-
 <div class="modal-bg" id="modalBg">
   <form class="modal" id="entryForm">
     <div class="modal-head">
@@ -381,8 +416,109 @@
     <button type="submit" class="submit-btn">حفظ العملية</button>
   </form>
 </div>
+</div><!-- /ledgerPage -->
 
-<div class="modal-bg" id="pwModalBg">
+<div id="overtimePage" style="display:none;">
+  <header>
+    <div class="wrap">
+      <div class="head-top">
+        <h1 class="stamp">ساعات العمل الإضافية</h1>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C08A2E" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      </div>
+      <div class="head-sub">
+        <p>سجّل مواعيدك واحسب وقتك الإضافي تلقائيًا</p>
+      </div>
+      <div class="month-nav">
+        <button id="otPrevMonth">‹</button>
+        <span id="otMonthLabel"></span>
+        <button id="otNextMonth">›</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="ot-summary">
+      <div class="ot-summary-row">
+        <span class="k">المرتب الشهري (من عمليات الدخل في الدفتر)</span>
+        <span class="v" id="otSalary">0.00</span>
+      </div>
+      <div class="ot-summary-row">
+        <span class="k">سعر ساعة العمل</span>
+        <span class="v" id="otHourRate">0.00</span>
+      </div>
+      <div class="ot-config">
+        <div>
+          <label>أيام الشهر</label>
+          <input type="number" id="otDaysInput" value="30" min="1" max="31" />
+        </div>
+        <div>
+          <label>ساعات اليوم العادي</label>
+          <input type="number" id="otStdHoursInput" value="9" min="1" max="24" />
+        </div>
+      </div>
+    </div>
+
+    <div class="ot-summary" style="margin-top:12px;">
+      <div class="ot-summary-row">
+        <span class="k">إجمالي ساعات الدوام العادي المسجلة</span>
+        <span class="v" id="otRegularHoursTotal">0</span>
+      </div>
+      <div class="ot-summary-row">
+        <span class="k">إجمالي مبلغ الدوام العادي</span>
+        <span class="v" id="otRegularPayTotal">0.00</span>
+      </div>
+      <div class="ot-summary-row">
+        <span class="k">إجمالي ساعات الوقت الإضافي</span>
+        <span class="v" id="otOvertimeHoursTotal">0</span>
+      </div>
+      <div class="ot-summary-row">
+        <span class="k">إجمالي مبلغ الوقت الإضافي</span>
+        <span class="v" id="otOvertimePayTotal">0.00</span>
+      </div>
+      <div class="ot-summary-row grand">
+        <span class="k">الإجمالي الكلي (عادي + إضافي)</span>
+        <span class="v" id="otGrandTotal">0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div id="otTableWrap"></div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <button class="fab" id="otOpenFormBtn">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+    إضافة يوم عمل
+  </button>
+
+  <div class="modal-bg" id="otModalBg">
+    <form class="modal" id="otForm">
+      <div class="modal-head">
+        <h2 class="stamp">يوم عمل جديد</h2>
+        <button type="button" id="otCloseForm">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <label class="field-label">التاريخ</label>
+      <input type="date" id="otDateInput" required />
+      <div class="row2">
+        <div>
+          <label class="field-label">موعد البداية</label>
+          <input type="time" id="otStartInput" required />
+        </div>
+        <div>
+          <label class="field-label">موعد النهاية</label>
+          <input type="time" id="otEndInput" required />
+        </div>
+      </div>
+      <button type="submit" class="submit-btn">حفظ اليوم</button>
+    </form>
+  </div>
+</div><!-- /overtimePage -->
+
+<div class="toast" id="toast"></div>
   <form class="modal" id="pwForm">
     <div class="modal-head">
       <h2 class="stamp">تغيير كلمة المرور</h2>
@@ -479,6 +615,8 @@ const CURRENCIES = [
 ];
 
 let entries = [];
+let workHours = []; // {id, date, start_time, end_time}
+let otMonthOffset = 0;
 let customCategories = []; // {id, label, color} added by the user
 let monthOffset = 0;
 let filterCat = "الكل";
@@ -551,18 +689,21 @@ async function showApp(){
   if(SUPABASE_CONFIGURED){
     document.getElementById('ledgerWrap').innerHTML = '<div class="empty"><p class="stamp">بتحمّل الدفتر...</p></div>';
     try{
-      const [entryRows, catRows] = await Promise.all([
+      const [entryRows, catRows, workRows] = await Promise.all([
         sbGet('entries', '?select=*&order=date.desc'),
         sbGet('custom_categories', '?select=*&order=created_at.asc'),
+        sbGet('work_hours', '?select=*&order=date.desc'),
       ]);
       entries = entryRows;
       customCategories = catRows.map(c => ({ id:c.id, label:c.label, color:c.color, custom:true }));
+      workHours = workRows;
     } catch(err){
       document.getElementById('ledgerWrap').innerHTML = '<div class="empty"><p class="stamp">حصل خطأ في التحميل</p><p class="small">'+err.message+'</p></div>';
     }
   }
   renderCatPicker();
   renderAll();
+  renderOvertimePage();
 }
 
 document.getElementById('authForm').onsubmit = async (e)=>{
@@ -957,6 +1098,164 @@ function showToast(msg){
   clearTimeout(showToast._timer);
   showToast._timer = setTimeout(()=>{ t.style.display='none'; }, 2200);
 }
+
+/* ---------------- Overtime page ---------------- */
+function getOtViewDate(){
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth()+otMonthOffset, 1);
+}
+
+function timeToMinutes(t){
+  const [h,m] = t.split(':').map(Number);
+  return h*60 + m;
+}
+
+function hoursBetween(start, end){
+  let diff = timeToMinutes(end) - timeToMinutes(start);
+  if(diff <= 0) diff += 24*60; // shift crosses midnight
+  return diff / 60;
+}
+
+function computeMonthlySalary(viewYear, viewMonth){
+  return entries
+    .filter(e=>{
+      if(e.type !== 'دخل') return false;
+      const d = new Date(e.date);
+      return d.getFullYear()===viewYear && d.getMonth()===viewMonth;
+    })
+    .reduce((s,e)=>s+Number(e.amount), 0);
+}
+
+function renderOvertimePage(){
+  const vd = getOtViewDate();
+  document.getElementById('otMonthLabel').textContent = MONTHS_AR[vd.getMonth()] + ' ' + vd.getFullYear();
+  document.getElementById('otNextMonth').disabled = otMonthOffset === 0;
+
+  const daysInMonthCfg = Number(document.getElementById('otDaysInput').value) || 30;
+  const stdHours = Number(document.getElementById('otStdHoursInput').value) || 9;
+
+  const salary = computeMonthlySalary(vd.getFullYear(), vd.getMonth());
+  const dailyRate = salary / daysInMonthCfg;
+  const hourRate = dailyRate / stdHours;
+
+  document.getElementById('otSalary').textContent = formatMoney(salary, currency.locale) + ' ' + currency.label;
+  document.getElementById('otHourRate').textContent = formatMoney(hourRate, currency.locale) + ' ' + currency.label;
+
+  const monthRows = workHours.filter(w=>{
+    const d = new Date(w.date);
+    return d.getFullYear()===vd.getFullYear() && d.getMonth()===vd.getMonth();
+  }).sort((a,b)=> a.date < b.date ? 1 : -1);
+
+  let regHoursTotal=0, regPayTotal=0, otHoursTotal=0, otPayTotal=0;
+
+  const wrap = document.getElementById('otTableWrap');
+  if(monthRows.length===0){
+    wrap.innerHTML = '<div class="empty"><p class="stamp">مفيش أيام مسجلة</p><p class="small">ضيف أول يوم عمل لهذا الشهر</p></div>';
+  } else {
+    const rowsHtml = monthRows.map(w=>{
+      const worked = hoursBetween(w.start_time, w.end_time);
+      const regular = Math.min(worked, stdHours);
+      const overtime = Math.max(worked - stdHours, 0);
+      const regularPay = hourRate * regular;
+      const overtimePay = hourRate * overtime;
+      const dayTotal = regularPay + overtimePay;
+      regHoursTotal += regular; regPayTotal += regularPay;
+      otHoursTotal += overtime; otPayTotal += overtimePay;
+      return '<div class="ot-row">'
+        + '<div class="ot-row-top">'
+          + '<span class="ot-row-date">'+w.date+'</span>'
+          + '<button class="ot-del" data-id="'+w.id+'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A33B2B" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg></button>'
+        + '</div>'
+        + '<div class="ot-row-times">من '+w.start_time+' إلى '+w.end_time+' · إجمالي '+worked.toFixed(1)+' ساعة</div>'
+        + '<div class="ot-row-nums">'
+          + '<div class="item">ساعات عادية<b>'+regular.toFixed(1)+'</b></div>'
+          + '<div class="item">ساعات إضافية<b>'+overtime.toFixed(1)+'</b></div>'
+          + '<div class="item">إجمالي اليوم<b>'+formatMoney(dayTotal,currency.locale)+' '+currency.label+'</b></div>'
+        + '</div>'
+      + '</div>';
+    }).join('');
+    wrap.innerHTML = '<div class="ot-table">'+rowsHtml+'</div>';
+    wrap.querySelectorAll('.ot-del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.id;
+        btn.disabled = true;
+        if(SUPABASE_CONFIGURED){
+          try{ await sbDelete('work_hours', id); } catch(err){ alert(err.message); btn.disabled=false; return; }
+        }
+        workHours = workHours.filter(w=>w.id !== id);
+        renderOvertimePage();
+      };
+    });
+  }
+
+  document.getElementById('otRegularHoursTotal').textContent = regHoursTotal.toFixed(1);
+  document.getElementById('otRegularPayTotal').textContent = formatMoney(regPayTotal, currency.locale) + ' ' + currency.label;
+  document.getElementById('otOvertimeHoursTotal').textContent = otHoursTotal.toFixed(1);
+  document.getElementById('otOvertimePayTotal').textContent = formatMoney(otPayTotal, currency.locale) + ' ' + currency.label;
+  document.getElementById('otGrandTotal').textContent = formatMoney(regPayTotal + otPayTotal, currency.locale) + ' ' + currency.label;
+}
+
+document.getElementById('tabLedgerPage').onclick = ()=>{
+  document.getElementById('tabLedgerPage').classList.add('active');
+  document.getElementById('tabOvertimePage').classList.remove('active');
+  document.getElementById('ledgerPage').style.display='block';
+  document.getElementById('overtimePage').style.display='none';
+};
+document.getElementById('tabOvertimePage').onclick = ()=>{
+  document.getElementById('tabOvertimePage').classList.add('active');
+  document.getElementById('tabLedgerPage').classList.remove('active');
+  document.getElementById('overtimePage').style.display='block';
+  document.getElementById('ledgerPage').style.display='none';
+  renderOvertimePage();
+};
+
+document.getElementById('otPrevMonth').onclick = ()=>{ otMonthOffset -= 1; renderOvertimePage(); };
+document.getElementById('otNextMonth').onclick = ()=>{ if(otMonthOffset<0){ otMonthOffset += 1; renderOvertimePage(); } };
+document.getElementById('otDaysInput').onchange = renderOvertimePage;
+document.getElementById('otStdHoursInput').onchange = renderOvertimePage;
+
+const otModalBg = document.getElementById('otModalBg');
+document.getElementById('otOpenFormBtn').onclick = ()=>{
+  otModalBg.style.display='flex';
+  document.getElementById('otDateInput').value = todayISO();
+};
+document.getElementById('otCloseForm').onclick = ()=>{ otModalBg.style.display='none'; };
+otModalBg.onclick = (e)=>{ if(e.target===otModalBg) otModalBg.style.display='none'; };
+
+document.getElementById('otForm').onsubmit = async (e)=>{
+  e.preventDefault();
+  const date = document.getElementById('otDateInput').value;
+  const start = document.getElementById('otStartInput').value;
+  const end = document.getElementById('otEndInput').value;
+  if(!date || !start || !end) return;
+
+  const newRow = { id: uid(), date, start_time: start, end_time: end };
+  const submitBtn = document.querySelector('#otForm .submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'بيتحفظ...';
+
+  if(SUPABASE_CONFIGURED){
+    try{
+      const saved = await sbInsert('work_hours', newRow);
+      workHours.unshift(saved);
+    } catch(err){
+      alert(err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'حفظ اليوم';
+      return;
+    }
+  } else {
+    workHours.unshift(newRow);
+  }
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'حفظ اليوم';
+  document.getElementById('otForm').reset();
+  otModalBg.style.display='none';
+  showToast('تم حفظ يوم العمل');
+  renderOvertimePage();
+};
+/* ---------------- /Overtime page ---------------- */
 
 // events
 document.getElementById('prevMonth').onclick = ()=>{ monthOffset -= 1; renderAll(); };

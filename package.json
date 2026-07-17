@@ -1,0 +1,12 @@
+{
+  "name": "digital-store",
+  "version": "1.0.0",
+  "description": "متجر منتجات رقمية + لوحة تحكم + نظام طلبات ودعم فني - بدون أي مكتبات خارجية",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
